@@ -1,1 +1,4 @@
 .idea/
+LIDC-IDRI/
+.vscode/
+__pycache__/
