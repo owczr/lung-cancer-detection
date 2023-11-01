@@ -1,4 +1,7 @@
+import logging
 from dataclasses import dataclass
+
+import numpy as np
 
 # Labels
 NODULE = "nodule"
@@ -16,12 +19,18 @@ UNBLINDED_READ_NODULE = "unblindedReadNodule"
 ROI = "roi"
 IMAGE_Z_POSITION = "imageZposition"
 ANNOTATION_NAMESPACE = "{http://www.nih.gov}"
+# Dicom tags
+SLICE_LOCATION = "SliceLocation"
+SOP_INSTANCE_UID = "SOPInstanceUID"
+PIXEL_DATA = "PixelData"
 # Parallelization
 BATCH_SIZE = 10
 MAX_WORKERS = None  # this will use all cores
 # Dicom image processing
 CLOSING_DISK_DIAMETER = 15
 OPENING_DISK_DIAMETER = 5
+# Logging
+PREPROCESSING_LOG = "preprocessing.log"
 
 
 @dataclass

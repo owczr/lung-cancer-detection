@@ -10,8 +10,12 @@ from skimage.morphology import (
     disk,
 )
 
-from base import BaseProcessor
-from utils import *
+from src.preprocessing.base import BaseProcessor
+from src.preprocessing.utils import *
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DicomProcessor(BaseProcessor):
@@ -38,8 +42,12 @@ class DicomProcessor(BaseProcessor):
 
     def process(self) -> ProcessedDicom:
         """Returns a normalized and segmented image with uid and z position"""
+        logger.info(f"Started processing {self.path}")
         # Read the dicom file
         dicom = pydicom.dcmread(self.path)
+        if self._check_dicom_tags(dicom):
+            logger.info(f"Dicom {self.path} doesn't have necessary tags.")
+            return
 
         # Create a lung mask
         mask = self._create_lung_mask(dicom)
@@ -51,7 +59,11 @@ class DicomProcessor(BaseProcessor):
         image_segmented = image * mask
 
         # Normalize image
-        image_processed = image_segmented / np.max(image_segmented)
+        if (max_value := np.max(image_segmented)) != 0:
+            image_processed = image_segmented / max_value 
+        else:
+            logger.error(f"Lung segmentation of {self.path} returned empty image.")
+            image_processed = image_segmented
 
         # Get UID from dicom for new filename
         uid = dicom.SOPInstanceUID
@@ -71,8 +83,8 @@ class DicomProcessor(BaseProcessor):
 
     def save(self, path):
         if self._data is None:
-            message = "Data is empty, call process method first!"
-            raise Exception(message)
+            logger.error(f"Attempt to save an empty image.")
+            return
         
         # Create filename and save image
         filename = f"{self.data.uid}{NUMPY_EXTENSION}"
@@ -81,8 +93,6 @@ class DicomProcessor(BaseProcessor):
 
 
     def process_and_save(self, path: str) -> None:
-    """Reads, processes and saves dicom images"""
-        # Get processed image, uid for filename and slice z position
         self.process()
         self.save(path)
 
@@ -148,3 +158,12 @@ class DicomProcessor(BaseProcessor):
         dcm.PixelData = image.tobytes()
 
         return dcm
+
+    @staticmethod
+    def _check_dicom_tags(dicom):
+        return any([
+            dicom.get(SLICE_LOCATION),
+            dicom.get(SOP_INSTANCE_UID),
+            dicom.get(PIXEL_DATA),
+        ])
+        

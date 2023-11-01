@@ -1,21 +1,31 @@
 import os
+import logging
+import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Mapping
+from datetime import datetime
 
 import numpy as np
+from tqdm import tqdm
 
-from base import BaseProcessor
-from preprocessing import AnnotationProcessor, DicomProcessor
-from utils import *
+import src.config
+from src.preprocessing.base import BaseProcessor
+from src.preprocessing.annotation_processor import AnnotationProcessor
+from src.preprocessing.dicom_processor import DicomProcessor
+from src.preprocessing.utils import *
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DatasetProcessor(BaseProcessor):
     """
     Processor for handling entire datasets.
 
-    This class processes directories containing DICOM and XML files. It's capable of parallel processing 
+    This class processes directories containing DICOM and XML files. It's capable of parallel processing
     and can save the processed data in an organized fashion.
-    
+
     Attributes:
         path (str): The path to the directory containing DICOM and XML files.
         _data (dict): Dictionary containing processed DICOMs and labels.
@@ -30,12 +40,14 @@ class DatasetProcessor(BaseProcessor):
         _generate_annotation_and_dicom_paths: Generates paths for DICOM and XML files.
         _get_annotation_xml_path: Returns the path to the XML annotation within a directory.
     """
+
     def __init__(self, path: str):
         self.path = path
         self._data = {
             DICOM_KEY: [],
             ANNOTATION_KEY: [],
         }
+        logger.info(f"Initialized DatasetProcessor for {path}")
 
     def process(self) -> Mapping[list[ProcessedDicom], list[str]]:
         """Processes whole directory and returns dictionary with processed dicoms and labels"""
@@ -43,16 +55,19 @@ class DatasetProcessor(BaseProcessor):
         return self._data
 
     def save(self, path: str) -> None:
-        for processed_dicom, label in self._data.items():
+        for processed_dicom, label in zip(
+            self._data[DICOM_KEY], self._data[ANNOTATION_KEY]
+        ):
             # Save image in correct label folder
             filename = f"{processed_dicom.uid}{NUMPY_EXTENSION}"
             output_path = os.path.join(path, label, filename)
             np.save(output_path, processed_dicom.image)
 
-
     def process_and_save(self, path: str) -> None:
         """Processes whole directory and saves it to given output directory"""
+        logger.info(f"Processings started at {datetime.now()}")
         self._process_parallel(self._process_and_save, path)
+        logger.info(f"Processing ended at {datetime.now()}")
 
     @property
     def data(self):
@@ -68,97 +83,105 @@ class DatasetProcessor(BaseProcessor):
     def data(self, value):
         self._data = value
 
-    def _process_parallel(self, worker_func, **kwargs):
-        path = kwargs.get("path")
+    def _process_parallel(self, worker_func, path=None):
+        if path:
+            # Create output directory if it doesn't exist
+            os.makedirs(path, exist_ok=True)
 
-        # Create output directory if it doesn't exist
-        os.makedirs(path, exists_ok=True)
+            # Create label directories, here processed dicoms will be saved
+            for label in [NODULE, NON_NODULE]:
+                label_path = os.path.join(path, label)
+                os.makedirs(label_path, exist_ok=True)
 
-        # Create label directories, here processed dicoms will be saved
-        for label in [NODULE, NON_NODULE]:
-            label_path = os.path.join(self.output_directory, label)
-            os.makedirs(label_path, exists_ok=True)
+        dataset_size = self._check_dataset_size()
+        logger.info(f"Processing dataset with {dataset_size} scans.")
 
-        for paths_dictionary in self._generate_annotation_and_dicom_paths(self.path):
-            # Unpack the dictionary
-            dicom_paths = paths_dictionary[DICOM_KEY]
-            annotation_path = paths_dictionary[ANNOTATION_KEY]
+        with tqdm(total=dataset_size) as pbar:
+            for paths_dictionary in self._generate_annotation_and_dicom_paths():
+                # Unpack the dictionary
+                dicom_paths = paths_dictionary[DICOM_KEY]
+                annotation_path = paths_dictionary[ANNOTATION_KEY]
 
-            # Get all z position of nodules
-            annotation_processor = AnnotationProcessor(path=annotation_path)
-            nodule_positions = annotation_processor.process()
+                # Get all z position of nodules
+                annotation_processor = AnnotationProcessor(path=annotation_path)
+                nodule_positions = annotation_processor.process()
 
-            # List of all future tasks
-            futures = []     
+                # List of all future tasks
+                futures = []
 
-            # Create batches from dicom_paths, this will reduco I/O frequency
-            dicom_batches = [
-                dicom_paths[i:i + BATCH_SIZE] for i in range(0, len(dicom_paths), BATCH_SIZE)
-            ]
+                # Create batches from dicom_paths, this will reduco I/O frequency
+                dicom_batches = [
+                    dicom_paths[i : i + BATCH_SIZE]
+                    for i in range(0, len(dicom_paths), BATCH_SIZE)
+                ]
 
-            with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                for dicom_batch in dicom_batches:
-                    # Submit a new task to the executor.
-                    # The _process_and_save function will process the DICOM and save it.
-                    future = executor.submit(
-                        worker_func, dicom_batch, nodule_positions, path
-                    )
-                    futures.append(future)
+                logger.info(f"Starting parallel processing.")
 
-            # Wait for all tasks to complete and handle exceptions if necessary
-            for future in as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"Task generated an exception: {e}")
+                with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                    for dicom_batch in dicom_batches:
+                        # Submit a new task to the executor.
+                        # The _process_and_save function will process the DICOM and save it.
+                        future = executor.submit(
+                            worker_func, dicom_batch, nodule_positions, path
+                        )
+                        futures.append(future)
+
+                    # Wait for all tasks to complete and handle exceptions if necessary
+                    for future in as_completed(futures):
+                        try:
+                            future.result()
+                        except Exception as e:
+                            logger.exception(f"Error processing batch:\n{e}")
+
+                logger.info(f"Finished parallel processing succesfully.")
+                pbar.update(1)
 
     def _process(
-        self, dicom_paths:
-        list[str],
-        nodule_positions: set[float],
-        **kwargs,
+        self, dicom_paths: list[str], nodule_positions: set[float], path=None
     ) -> None:
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
-            dicom_processor = DicomProcessor(path=dicom_path)
-            processed_dicom = dicom_processor.process()
+            dp = DicomProcessor(path=dicom_path)
+            processed_dicom = dp.process()
+
+            if processed_dicom is None:
+                logger.error(f"Processing dicom {dp.path} returned None.")
+                return
 
             # Check whether slice contains a nodule
             label = (
-                NODULE
-                if processed_dicom.z_position in nodule_positions
-                else NON_NODULE
+                NODULE if processed_dicom.z_position in nodule_positions else NON_NODULE
             )
 
             self._data[DICOM_KEY].append(processed_dicom)
-            self._data[ANNOTATION_KEY].appemd(label)
+            self._data[ANNOTATION_KEY].append(label)
 
     def _process_and_save(
-        self, dicom_paths: list[str],
-        nodule_positions: set[float],
-        path: str,
+        self, dicom_paths: list[str], nodule_positions: set[float], path: str
     ) -> None:
-    """Reads, processes and saves dicom images"""
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
-            dicom_processor = DicomProcessor(path=dicom_path)
-            processed_dicom = dicom_processor.process()
+            dp = DicomProcessor(path=dicom_path)
+            processed_dicom = dp.process()
+
+            if processed_dicom is None:
+                logger.error(f"Processing dicom {dp.path} returned None")
+                return
 
             # Check whether slice contains a nodule
             label = (
-                NODULE
-                if processed_dicom.z_position in nodule_positions
-                else NON_NODULE
+                NODULE if processed_dicom.z_position in nodule_positions else NON_NODULE
             )
 
             # Save image in correct label folder
             filename = f"{processed_dicom.uid}{NUMPY_EXTENSION}"
             output_path = os.path.join(path, label, filename)
             np.save(output_path, processed_dicom.image)
+            logger.info(f"Saved DICOM Image to {output_path}")
 
-    def _generate_annotation_and_dicom_paths(self, path: str) -> tuple:
+    def _generate_annotation_and_dicom_paths(self) -> tuple:
         """Yields a dictionary with path to annotation and paths to dicoms"""
-        for root, _, files in os.walk(path, topdown=False):
+        for root, _, files in os.walk(self.path, topdown=False):
             if len(files) == 0:
                 continue
 
@@ -169,6 +192,8 @@ class DatasetProcessor(BaseProcessor):
             ]
 
             annotation_path = self._get_annotation_xml_path(root)
+            if annotation_path is None:
+                continue
 
             paths_dictionary = {
                 DICOM_KEY: dicom_paths,
@@ -177,8 +202,7 @@ class DatasetProcessor(BaseProcessor):
 
             yield paths_dictionary
 
-    @staticmethod
-    def _get_annotation_xml_path(directory: str) -> str:
+    def _get_annotation_xml_path(self, directory: str) -> str:
         """Returns path to annotation xml"""
         # List all files in the directory
         files = [
@@ -194,6 +218,11 @@ class DatasetProcessor(BaseProcessor):
         if len(xml_files) == 1:
             return os.path.join(directory, xml_files[0])
         elif len(xml_files) == 0:
-            raise ValueError("No XML files found in the directory.")
+            logger.exception("No XML files found in the directory.")
+            return None
         else:
-            raise ValueError("Multiple XML files found. Expected only one.")
+            logger.exception("Multiple XML files found. Expected only one.")
+            return None
+
+    def _check_dataset_size(self) -> int:
+        return sum(1 for _ in self._generate_annotation_and_dicom_paths())

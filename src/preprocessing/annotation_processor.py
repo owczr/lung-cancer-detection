@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
-from base import BaseProcessor
-from utils import *
+from src.preprocessing.base import BaseProcessor
+from src.preprocessing.utils import *
 
 
 class AnnotationProcessor(BaseProcessor):
