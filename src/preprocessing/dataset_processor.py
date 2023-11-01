@@ -1,44 +1,92 @@
 import os
-import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Mapping
 
-import pydicom
 import numpy as np
-from skimage.filters import threshold_otsu
-from skimage.segmentation import clear_border
-from skimage.morphology import (
-    remove_small_objects,
-    remove_small_holes,
-    binary_closing,
-    binary_opening,
-    disk,
-)
 
-class DicomDatasetProcessor:
-    def __init__(self, input_directory: str, output_directory: str):
-        self.input_directory = input_directory
-        self.output_directory = output_directory
+from base import BaseProcessor
+from preprocessing import AnnotationProcessor, DicomProcessor
+from utils import *
 
-    def process_directory(self) -> None:
+
+class DatasetProcessor(BaseProcessor):
+    """
+    Processor for handling entire datasets.
+
+    This class processes directories containing DICOM and XML files. It's capable of parallel processing 
+    and can save the processed data in an organized fashion.
+    
+    Attributes:
+        path (str): The path to the directory containing DICOM and XML files.
+        _data (dict): Dictionary containing processed DICOMs and labels.
+
+    Methods inherited from BaseProcessor:
+        process, save, process_and_save.
+
+    Private Methods:
+        _process_parallel: Processes the dataset in parallel using multiple CPU cores.
+        _process: Processes a batch of DICOM files.
+        _process_and_save: Processes and saves a batch of DICOM files.
+        _generate_annotation_and_dicom_paths: Generates paths for DICOM and XML files.
+        _get_annotation_xml_path: Returns the path to the XML annotation within a directory.
+    """
+    def __init__(self, path: str):
+        self.path = path
+        self._data = {
+            DICOM_KEY: [],
+            ANNOTATION_KEY: [],
+        }
+
+    def process(self) -> Mapping[list[ProcessedDicom], list[str]]:
+        """Processes whole directory and returns dictionary with processed dicoms and labels"""
+        self._process_parallel(self._process)
+        return self._data
+
+    def save(self, path: str) -> None:
+        for processed_dicom, label in self._data.items():
+            # Save image in correct label folder
+            filename = f"{processed_dicom.uid}{NUMPY_EXTENSION}"
+            output_path = os.path.join(path, label, filename)
+            np.save(output_path, processed_dicom.image)
+
+
+    def process_and_save(self, path: str) -> None:
         """Processes whole directory and saves it to given output directory"""
+        self._process_parallel(self._process_and_save, path)
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.getter
+    def data(self):
+        if self._data is None:
+            self.process()
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+    def _process_parallel(self, worker_func, **kwargs):
+        path = kwargs.get("path")
+
         # Create output directory if it doesn't exist
-        os.makedirs(self.output_directory, exists_ok=True)
+        os.makedirs(path, exists_ok=True)
 
         # Create label directories, here processed dicoms will be saved
         for label in [NODULE, NON_NODULE]:
-            path = os.path.join(self.output_directory, label)
-            os.makedirs(path, exists_ok=True)
+            label_path = os.path.join(self.output_directory, label)
+            os.makedirs(label_path, exists_ok=True)
 
-        for paths_dictionary in self.__generate_annotation_and_dicom_paths(
-            self.input_directory
-        ):
+        for paths_dictionary in self._generate_annotation_and_dicom_paths(self.path):
             # Unpack the dictionary
             dicom_paths = paths_dictionary[DICOM_KEY]
             annotation_path = paths_dictionary[ANNOTATION_KEY]
 
             # Get all z position of nodules
-            nodule_positions = self.__process_annotation(annotation_path)
+            annotation_processor = AnnotationProcessor(path=annotation_path)
+            nodule_positions = annotation_processor.process()
 
             # List of all future tasks
             futures = []     
@@ -51,9 +99,9 @@ class DicomDatasetProcessor:
             with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 for dicom_batch in dicom_batches:
                     # Submit a new task to the executor.
-                    # The __process_and_save function will process the DICOM and save it.
+                    # The _process_and_save function will process the DICOM and save it.
                     future = executor.submit(
-                        self.__process_and_save, dicom_batch, nodule_positions
+                        worker_func, dicom_batch, nodule_positions, path
                     )
                     futures.append(future)
 
@@ -64,14 +112,37 @@ class DicomDatasetProcessor:
                 except Exception as e:
                     print(f"Task generated an exception: {e}")
 
-    def __process_and_save(
+    def _process(
+        self, dicom_paths:
+        list[str],
+        nodule_positions: set[float],
+        **kwargs,
+    ) -> None:
+        for dicom_path in dicom_paths:
+            # Get processed image, uid for filename and slice z position
+            dicom_processor = DicomProcessor(path=dicom_path)
+            processed_dicom = dicom_processor.process()
+
+            # Check whether slice contains a nodule
+            label = (
+                NODULE
+                if processed_dicom.z_position in nodule_positions
+                else NON_NODULE
+            )
+
+            self._data[DICOM_KEY].append(processed_dicom)
+            self._data[ANNOTATION_KEY].appemd(label)
+
+    def _process_and_save(
         self, dicom_paths: list[str],
         nodule_positions: set[float],
+        path: str,
     ) -> None:
     """Reads, processes and saves dicom images"""
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
-            processed_dicom = self.process_dicom(dicom_path)
+            dicom_processor = DicomProcessor(path=dicom_path)
+            processed_dicom = dicom_processor.process()
 
             # Check whether slice contains a nodule
             label = (
@@ -82,10 +153,10 @@ class DicomDatasetProcessor:
 
             # Save image in correct label folder
             filename = f"{processed_dicom.uid}{NUMPY_EXTENSION}"
-            output_path = os.path.join(self.output_directory, label, filename)
+            output_path = os.path.join(path, label, filename)
             np.save(output_path, processed_dicom.image)
 
-    def __generate_annotation_and_dicom_paths(self, path: str) -> tuple:
+    def _generate_annotation_and_dicom_paths(self, path: str) -> tuple:
         """Yields a dictionary with path to annotation and paths to dicoms"""
         for root, _, files in os.walk(path, topdown=False):
             if len(files) == 0:
@@ -97,7 +168,7 @@ class DicomDatasetProcessor:
                 if f.endswith(DICOM_EXTENSION)
             ]
 
-            annotation_path = self.__get_annotation_xml_path(root)
+            annotation_path = self._get_annotation_xml_path(root)
 
             paths_dictionary = {
                 DICOM_KEY: dicom_paths,
@@ -107,7 +178,7 @@ class DicomDatasetProcessor:
             yield paths_dictionary
 
     @staticmethod
-    def __get_annotation_xml_path(directory: str) -> str:
+    def _get_annotation_xml_path(directory: str) -> str:
         """Returns path to annotation xml"""
         # List all files in the directory
         files = [
@@ -126,103 +197,3 @@ class DicomDatasetProcessor:
             raise ValueError("No XML files found in the directory.")
         else:
             raise ValueError("Multiple XML files found. Expected only one.")
-
-    @staticmethod
-    def __process_annotation(xml_path: str) -> set[float]:
-        """Returns a set with z positions of nodules"""
-        # Get root from the xml file
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-
-        _ = lambda s: f"{ANNOTATION_NAMESPACE}{str(s)}"  # adds namespace name to string
-
-        # Create a list of z positions that contain a nodule
-        nodule_z_positions = [
-            float(z_position.text)
-            for reading_session in root.findall(_(READING_SESSION))
-            for unblinded_read_nodule in reading_session.findall(
-                _(UNBLINDED_READ_NODULE)
-            )
-            for roi in unblinded_read_nodule.findall(_(ROI))
-            for z_position in roi.findall(_(IMAGE_Z_POSITION))
-        ]
-
-        return set(nodule_z_positions)
-
-    def process_dicom(self, dicom_path: str) -> ProcessedDicom:
-        """Returns a normalized and segmented image with uid and z position"""
-        # Read the dicom file
-        dicom = pydicom.dcmread(dicom_path)
-
-        # Create a lung mask
-        mask = self.create_lung_mask(dicom)
-
-        # Get image from dicom object
-        image = dicom.pixel_array
-
-        # Segment lungs by multiplying image with mask
-        image_segmented = image * mask
-
-        # Normalize image
-        image_processed = image_segmented / np.max(image_segmented)
-
-        # Get UID from dicom for new filename
-        uid = dicom.SOPInstanceUID
-
-        # Get z_position to check whether it contains a nodule
-        z_position = dicom.SliceLocation
-
-        processed_dicom = ProcessedDicom(
-            image=image_processed,
-            uid=uid,
-            z_position=z_position,
-        )
-
-        return processed_dicom
-    
-    @staticmethod
-    def __fix_outliers(
-        dcm: pydicom.dataset.FileDataset
-    ) -> pydicom.dataset.FileDataset:
-        """Returns dicom object without negative values"""
-        # Get image from dicom object
-        image = dcm.pixel_array
-
-        # Set negative values to 0
-        image[image < 0] = 0
-
-        # Save image data back to dicom object
-        dcm.PixelData = image.tobytes()
-
-        return dcm
-
-    def create_lung_mask(self, dcm: pydicom.dataset.FileDataset) -> np.ndarray:
-        """Returns a binary mask from dicom object"""
-        # Fix outliers and load dicom pixel array
-        dcm = self.__fix_outliers(dcm)
-        image = dcm.pixel_array
-
-        # Select threshold using the Otsu method
-        thresh = threshold_otsu(image)
-
-        # Reverse binarization of the image
-        mask_binary = image < thresh
-
-        # Remove border, now only lungs and some noise is visible
-        mask_borderless = clear_border(mask_binary)
-
-        # Remove small artifacts around lungs
-        mask_without_objects = remove_small_objects(mask_borderless)
-
-        # Fill holes within lungs
-        mask_without_holes = remove_small_holes(mask_without_objects)
-
-        # Binary closing remove larger holes
-        closing_disk = disk(CLOSING_DISK_DIAMETER)
-        mask_closed = binary_closing(mask_without_holes)
-
-        # Binary opening to disconnect lungs
-        opening_disk = disk(OPENING_DISK_DIAMETER)
-        mask_opened = binary_opening(mask_closed)
-
-        return mask_opened
