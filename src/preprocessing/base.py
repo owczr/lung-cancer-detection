@@ -19,7 +19,7 @@ class BaseProcessor(ABC):
         self.path = path
 
     @abstractmethod 
-    def process(self):
+    def process(self, as_output: bool = False):
         pass
 
     @abstractmethod

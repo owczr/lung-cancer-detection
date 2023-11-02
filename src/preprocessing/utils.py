@@ -18,6 +18,9 @@ READING_SESSION = "readingSession"
 UNBLINDED_READ_NODULE = "unblindedReadNodule"
 ROI = "roi"
 IMAGE_Z_POSITION = "imageZposition"
+EDGE_MAP = "edgeMap"
+Y_COORD = "yCoord"
+X_COORD = "xCoord"
 ANNOTATION_NAMESPACE = "{http://www.nih.gov}"
 # Dicom tags
 SLICE_LOCATION = "SliceLocation"
@@ -35,6 +38,14 @@ PREPROCESSING_LOG = "preprocessing.log"
 
 @dataclass
 class ProcessedDicom:
+    """Processed dicom image with uid and slice location"""
     image: np.ndarray
     uid: str
     z_position: float
+
+@dataclass
+class ProcessedAnnotation:
+    """Annotation coordinates on a single dicom"""
+    z_position: float
+    x_positions: list[float]
+    y_positions: list[float]

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pydicom
 import numpy as np
 from skimage.filters import threshold_otsu
@@ -9,6 +11,7 @@ from skimage.morphology import (
     binary_opening,
     disk,
 )
+from skimage.draw import polygon
 
 from src.preprocessing.base import BaseProcessor
 from src.preprocessing.utils import *
@@ -36,17 +39,18 @@ class DicomProcessor(BaseProcessor):
         _create_lung_mask: Creates a binary mask from the DICOM data.
         _fix_outliers: Fixes outlier values in the DICOM data.
     """
-    def __init__(self, path: str):
+    def __init__(self, path: str, annotations: Optional[list[ProcessedAnnotation]] = None):
         self.path = path
         self._data = None
+        self.annotations = annotations or None
 
-    def process(self) -> ProcessedDicom:
+    def process(self, as_output: bool = False) -> ProcessedDicom:
         """Returns a normalized and segmented image with uid and z position"""
         logger.info(f"Started processing {self.path}")
         # Read the dicom file
         dicom = pydicom.dcmread(self.path)
         if self._check_dicom_tags(dicom):
-            logger.info(f"Dicom {self.path} doesn't have necessary tags.")
+            logger.error(f"Dicom {self.path} doesn't have necessary tags.")
             return
 
         # Create a lung mask
@@ -79,7 +83,7 @@ class DicomProcessor(BaseProcessor):
 
         self._data = processed_dicom
 
-        return self._data
+        return self._data if as_output else None
 
     def save(self, path):
         if self._data is None:
@@ -141,6 +145,20 @@ class DicomProcessor(BaseProcessor):
         opening_disk = disk(OPENING_DISK_DIAMETER)
         mask_opened = binary_opening(mask_closed)
 
+        # If annotations were provided include them, sometimes binarization misses them
+        mask = mask_opened if self.annotations is None else self._include_annotation(dcm, mask_opened) 
+
+        return mask
+    
+    def _include_annotation(
+        self, dcm: pydicom.dataset.FileDataset, mask_opened: np.ndarray
+    ) -> np.ndarray:
+        z_position = dcm.SliceLocation
+        for annotation in self.annotations:
+            if abs(annotation.z_position - z_position) < 1e-5:
+                rr, cc = polygon(annotation.y_positions, annotation.x_positions)
+                mask_opened[rr, cc] = True
+
         return mask_opened
 
     @staticmethod
@@ -162,8 +180,8 @@ class DicomProcessor(BaseProcessor):
     @staticmethod
     def _check_dicom_tags(dicom):
         return any([
-            dicom.get(SLICE_LOCATION),
-            dicom.get(SOP_INSTANCE_UID),
-            dicom.get(PIXEL_DATA),
+            dicom.get(SLICE_LOCATION) is None,
+            dicom.get(SOP_INSTANCE_UID) is None,
+            dicom.get(PIXEL_DATA) is None,
         ])
         

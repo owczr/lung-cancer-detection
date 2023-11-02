@@ -49,10 +49,10 @@ class DatasetProcessor(BaseProcessor):
         }
         logger.info(f"Initialized DatasetProcessor for {path}")
 
-    def process(self) -> Mapping[list[ProcessedDicom], list[str]]:
-        """Processes whole directory and returns dictionary with processed dicoms and labels"""
+    def process(self, as_output: bool = False) -> Mapping[list[ProcessedDicom], list[str]]:
+        """Processes whole directory and optionaly returns dictionary with processed dicoms and labels"""
         self._process_parallel(self._process)
-        return self._data
+        return self._data if as_output else None
 
     def save(self, path: str) -> None:
         for processed_dicom, label in zip(
@@ -103,8 +103,9 @@ class DatasetProcessor(BaseProcessor):
                 annotation_path = paths_dictionary[ANNOTATION_KEY]
 
                 # Get all z position of nodules
-                annotation_processor = AnnotationProcessor(path=annotation_path)
-                nodule_positions = annotation_processor.process()
+                ap = AnnotationProcessor(path=annotation_path)
+                ap.process()
+                nodule_positions = ap.z_positions
 
                 # List of all future tasks
                 futures = []
@@ -122,7 +123,7 @@ class DatasetProcessor(BaseProcessor):
                         # Submit a new task to the executor.
                         # The _process_and_save function will process the DICOM and save it.
                         future = executor.submit(
-                            worker_func, dicom_batch, nodule_positions, path
+                            worker_func, dicom_batch, nodule_positions, ap.data, path,
                         )
                         futures.append(future)
 
@@ -137,12 +138,13 @@ class DatasetProcessor(BaseProcessor):
                 pbar.update(1)
 
     def _process(
-        self, dicom_paths: list[str], nodule_positions: set[float], path=None
+        self, dicom_paths: list[str], nodule_positions: set[float],
+        annotations: list[ProcessedAnnotation], path=None
     ) -> None:
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
-            dp = DicomProcessor(path=dicom_path)
-            processed_dicom = dp.process()
+            dp = DicomProcessor(path=dicom_path, annotations=annotations)
+            processed_dicom = dp.process(as_output=True)
 
             if processed_dicom is None:
                 logger.error(f"Processing dicom {dp.path} returned None.")
@@ -157,12 +159,13 @@ class DatasetProcessor(BaseProcessor):
             self._data[ANNOTATION_KEY].append(label)
 
     def _process_and_save(
-        self, dicom_paths: list[str], nodule_positions: set[float], path: str
+        self, dicom_paths: list[str], nodule_positions: set[float],
+        annotations: list[ProcessedAnnotation], path: str
     ) -> None:
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
-            dp = DicomProcessor(path=dicom_path)
-            processed_dicom = dp.process()
+            dp = DicomProcessor(path=dicom_path, annotations=annotations)
+            processed_dicom = dp.process(as_output=True)
 
             if processed_dicom is None:
                 logger.error(f"Processing dicom {dp.path} returned None")
