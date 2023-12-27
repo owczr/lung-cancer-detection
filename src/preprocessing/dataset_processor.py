@@ -86,11 +86,11 @@ class DatasetProcessor(BaseProcessor):
     def data(self, value):
         self._data = value
 
-    def train_test_split(self, train_size: float = 0.8):
+    def train_test_split(self, path: str, train_size: float = 0.8):
         """Splits the dataset into training and testing sets"""
         # Check if nodue and non nodule folders exist
         if not all(
-            os.path.exists(os.path.join(self.path, category))
+            os.path.exists(os.path.join(path, category))
             for category in [NODULE, NON_NODULE]
         ):
             logger.info(
@@ -99,15 +99,15 @@ class DatasetProcessor(BaseProcessor):
             )
             return
 
-        train_dir = os.path.join(self.path, TRAIN_FOLDER)
-        test_dir = os.path.join(self.path, TEST_FOLDER)
+        train_dir = os.path.join(path, TRAIN_FOLDER)
+        test_dir = os.path.join(path, TEST_FOLDER)
 
         for category in [NODULE, NON_NODULE]:
             os.makedirs(os.path.join(train_dir, category), exist_ok=True)
             os.makedirs(os.path.join(test_dir, category), exist_ok=True)
 
             self._split_data(
-                os.path.join(self.path, category),
+                os.path.join(path, category),
                 os.path.join(train_dir, category),
                 os.path.join(test_dir, category),
                 train_size,
@@ -126,22 +126,27 @@ class DatasetProcessor(BaseProcessor):
         test_files = shuffled_files[split_index:]
 
         # Copy files to the respective directories
-        for file in train_files:
-            shutil.copy(os.path.join(source, file), train_dir)
-        for file in test_files:
-            shutil.copy(os.path.join(source, file), test_dir)
+        with tqdm(total=len(train_files)) as pbar:
+            for file in train_files:
+                shutil.copy(os.path.join(source, file), train_dir)
+                pbar.update(1)
 
-    def remove_processed_data(self):
+        with tqdm(total=len(test_files)) as pbar:
+            for file in test_files:
+                shutil.copy(os.path.join(source, file), test_dir)
+                pbar.update(1)
+
+    def remove_processed_data(self, path: str):
         """Removes all processed data from the directory"""
         categories = []
         # Check if nodule folder exists
-        if not os.path.exists(os.path.join(self.path, NODULE)):
+        if not os.path.exists(os.path.join(path, NODULE)):
             logger.info(f"Directory {NODULE} does not exist.")
         else:
             categories.append(NODULE)
 
         # Check if non_nodule folder exists
-        if not os.path.exists(os.path.join(self.path, NON_NODULE)):
+        if not os.path.exists(os.path.join(path, NON_NODULE)):
             logger.info(f"Directory {NON_NODULE} does not exist.")
         else:
             categories.append(NON_NODULE)
@@ -151,19 +156,20 @@ class DatasetProcessor(BaseProcessor):
             return
 
         for category in categories:
-            shutil.rmtree(os.path.join(self.path, category))
+            shutil.rmtree(os.path.join(path, category))
+        logger.info(f"Removed processed data.") 
 
-    def remove_train_test_data(self):
+    def remove_train_test_data(self, path: str):
         """Removes train and test directories"""
         categories = []
         # Check if train folder exists
-        if not os.path.exists(os.path.join(self.path, TRAIN_FOLDER)):
+        if not os.path.exists(os.path.join(path, TRAIN_FOLDER)):
             logger.info(f"Directory {TRAIN_FOLDER} does not exist.")
         else:
             categories.append(TRAIN_FOLDER)
         
         # Check if test folder exists
-        if not os.path.exists(os.path.join(self.path, TEST_FOLDER)):
+        if not os.path.exists(os.path.join(path, TEST_FOLDER)):
             logger.info(f"Directory {TEST_FOLDER} does not exist.")
         else:
             categories.append(TEST_FOLDER)
@@ -173,7 +179,8 @@ class DatasetProcessor(BaseProcessor):
             return
 
         for category in categories:
-            shutil.rmtree(os.path.join(self.path, category))
+            shutil.rmtree(os.path.join(path, category))
+        logger.info(f"Removed train and test directories.")
 
     def _process_parallel(self, worker_func, path=None):
         if path:
