@@ -6,6 +6,8 @@ import numpy as np
 # Labels
 NODULE = "nodule"
 NON_NODULE = "non_nodule"
+TRAIN_FOLDER = "train"
+TEST_FOLDER = "test"
 # Extensions
 DICOM_EXTENSION = ".dcm"
 NUMPY_EXTENSION = ".npy"

@@ -1,4 +1,5 @@
 import os
+import shutil
 import logging
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -49,7 +50,9 @@ class DatasetProcessor(BaseProcessor):
         }
         logger.info(f"Initialized DatasetProcessor for {path}")
 
-    def process(self, as_output: bool = False) -> Mapping[list[ProcessedDicom], list[str]]:
+    def process(
+        self, as_output: bool = False
+    ) -> Mapping[list[ProcessedDicom], list[str]]:
         """Processes whole directory and optionaly returns dictionary with processed dicoms and labels"""
         self._process_parallel(self._process)
         return self._data if as_output else None
@@ -82,6 +85,95 @@ class DatasetProcessor(BaseProcessor):
     @data.setter
     def data(self, value):
         self._data = value
+
+    def train_test_split(self, train_size: float = 0.8):
+        """Splits the dataset into training and testing sets"""
+        # Check if nodue and non nodule folders exist
+        if not all(
+            os.path.exists(os.path.join(self.path, category))
+            for category in [NODULE, NON_NODULE]
+        ):
+            logger.info(
+                f"Directories {NODULE} and {NON_NODULE} do not exist."
+                "Process the dataset first."
+            )
+            return
+
+        train_dir = os.path.join(self.path, TRAIN_FOLDER)
+        test_dir = os.path.join(self.path, TEST_FOLDER)
+
+        for category in [NODULE, NON_NODULE]:
+            os.makedirs(os.path.join(train_dir, category), exist_ok=True)
+            os.makedirs(os.path.join(test_dir, category), exist_ok=True)
+
+            self._split_data(
+                os.path.join(self.path, category),
+                os.path.join(train_dir, category),
+                os.path.join(test_dir, category),
+                train_size,
+            )
+
+    def _split_data(self, source, train_dir, test_dir, split_size):
+        files = os.listdir(source)
+
+        # Shuffle the files randomly
+        shuffled_files = np.random.permutation(files)
+
+        # Calculate the split index
+        split_index = int(len(shuffled_files) * split_size)
+
+        train_files = shuffled_files[:split_index]
+        test_files = shuffled_files[split_index:]
+
+        # Copy files to the respective directories
+        for file in train_files:
+            shutil.copy(os.path.join(source, file), train_dir)
+        for file in test_files:
+            shutil.copy(os.path.join(source, file), test_dir)
+
+    def remove_processed_data(self):
+        """Removes all processed data from the directory"""
+        categories = []
+        # Check if nodule folder exists
+        if not os.path.exists(os.path.join(self.path, NODULE)):
+            logger.info(f"Directory {NODULE} does not exist.")
+        else:
+            categories.append(NODULE)
+
+        # Check if non_nodule folder exists
+        if not os.path.exists(os.path.join(self.path, NON_NODULE)):
+            logger.info(f"Directory {NON_NODULE} does not exist.")
+        else:
+            categories.append(NON_NODULE)
+        
+        if len(categories) == 0:
+            logger.info(f"No nodule and non nodule directories to remove.")
+            return
+
+        for category in categories:
+            shutil.rmtree(os.path.join(self.path, category))
+
+    def remove_train_test_data(self):
+        """Removes train and test directories"""
+        categories = []
+        # Check if train folder exists
+        if not os.path.exists(os.path.join(self.path, TRAIN_FOLDER)):
+            logger.info(f"Directory {TRAIN_FOLDER} does not exist.")
+        else:
+            categories.append(TRAIN_FOLDER)
+        
+        # Check if test folder exists
+        if not os.path.exists(os.path.join(self.path, TEST_FOLDER)):
+            logger.info(f"Directory {TEST_FOLDER} does not exist.")
+        else:
+            categories.append(TEST_FOLDER)
+        
+        if len(categories) == 0:
+            logger.info(f"No train and test directories to remove.")
+            return
+
+        for category in categories:
+            shutil.rmtree(os.path.join(self.path, category))
 
     def _process_parallel(self, worker_func, path=None):
         if path:
@@ -123,7 +215,11 @@ class DatasetProcessor(BaseProcessor):
                         # Submit a new task to the executor.
                         # The _process_and_save function will process the DICOM and save it.
                         future = executor.submit(
-                            worker_func, dicom_batch, nodule_positions, ap.data, path,
+                            worker_func,
+                            dicom_batch,
+                            nodule_positions,
+                            ap.data,
+                            path,
                         )
                         futures.append(future)
 
@@ -138,8 +234,11 @@ class DatasetProcessor(BaseProcessor):
                 pbar.update(1)
 
     def _process(
-        self, dicom_paths: list[str], nodule_positions: set[float],
-        annotations: list[ProcessedAnnotation], path=None
+        self,
+        dicom_paths: list[str],
+        nodule_positions: set[float],
+        annotations: list[ProcessedAnnotation],
+        path=None,
     ) -> None:
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
@@ -159,8 +258,11 @@ class DatasetProcessor(BaseProcessor):
             self._data[ANNOTATION_KEY].append(label)
 
     def _process_and_save(
-        self, dicom_paths: list[str], nodule_positions: set[float],
-        annotations: list[ProcessedAnnotation], path: str
+        self,
+        dicom_paths: list[str],
+        nodule_positions: set[float],
+        annotations: list[ProcessedAnnotation],
+        path: str,
     ) -> None:
         for dicom_path in dicom_paths:
             # Get processed image, uid for filename and slice z position
