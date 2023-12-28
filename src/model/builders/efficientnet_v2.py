@@ -52,7 +52,7 @@ class EfficientNetV2Builder(ModelBuilder):
 
     def set_model_layers(self):
         """Sets the model layers for the EfficientNetV2 model"""
-        base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B3(  
+        base_model = tf.keras.applications.efficientnet_v2.EfficientNetV2B0(  
             input_shape=EFFICIENTNETV2_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 

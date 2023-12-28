@@ -54,7 +54,7 @@ class NASNetBuilder(ModelBuilder):
 
     def set_model_layers(self):
         """Sets the model layers for the NASNet model"""
-        base_model = tf.keras.applications.nasnet.NASNetLarge(
+        base_model = tf.keras.applications.nasnet.NASNetMobile(
             input_shape=NASNET_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 
