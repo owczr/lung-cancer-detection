@@ -1,2 +1,2 @@
-from .model_builder import ModelBuilder
+from .base import ModelBuilder
 from .mobilenet_builder import MobileNetBuilder
