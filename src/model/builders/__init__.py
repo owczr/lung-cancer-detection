@@ -5,3 +5,4 @@ from .inceptionnet import InceptionNetBuilder
 from .xception import XceptionBuilder
 from .resnet import ResNetBuilder
 from .nasnet import NASNetBuilder
+from .vgg import VGGBuilder
