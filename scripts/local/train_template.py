@@ -5,7 +5,7 @@ from src.dataset.dataset_loader import DatasetLoader
 
 DATASET_DIR = "LIDC-IDRI/CT/processed/train"
 
-
+# TODO: Change function name
 def build_TEMPLATE():
     builder = ...  # TODO: Instantiate the builder
     director = ModelDirector(builder)
