@@ -10,7 +10,6 @@ from src.preprocessing.utils import HEIGHT, WIDTH
 
 
 MOBILENET_INPUT_SHAPE = (224, 224, 3)
-MOBILENET_SCALE = 1.0 / 127.5
 MOBILENET_DENSE_UNITS = 128
 MOBILENET_DENSE_ACTIVATION = "relu"
 MOBILENET_DROPOUT_RATE = 0.2
@@ -46,15 +45,12 @@ class MobileNetBuilder(ModelBuilder):
             preprocess_input, input_shape=MOBILENET_INPUT_SHAPE
         )
 
-        rescale_layer = tf.keras.layers.Rescaling(scale=MOBILENET_SCALE)
-
         self.preprocessing_layers = tf.keras.Sequential(
             [
                 reshape_layer,
                 greyscale_layer,
                 resize_layer,
                 preprocess_input_layer,
-                rescale_layer,
             ]
         )
         logger.info("MobileNet preprocessing layers set")
