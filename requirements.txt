@@ -1,5 +1,5 @@
 numpy==1.23.5
 pydicom==2.4.4
-skimage==0.0
+scikit-image==0.20.0
 tensorflow==2.12.0
 tqdm==4.65.0
