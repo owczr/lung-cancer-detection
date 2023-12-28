@@ -6,9 +6,10 @@
 - [License](#license)
 
 ## About
-Lung Cancer Detection is a project made for Engineers Thesis "Applications of artificial intellingence in oncology on computer tomography dataset" by **Jakub Owczarek**, under the guidance of Thesis Advisor dr. hab. inz **Mariusz Mlynarczuk** prof. AGH.
+Lung Cancer Detection is a project made as part of Engineers Thesis *"Applications of artificial intellingence in oncology on computer tomography dataset"* by **Jakub Owczarek**, under the guidance of Thesis Advisor dr. hab. inz **Mariusz Mlynarczuk** prof. AGH.
 <br>
-The goal of this projet is to process the [LIDC-IDRI](https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=1966254) dataset and fine-tune deep learining models.
+
+The goal of this projet is to process the [LIDC-IDRI](https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=1966254) dataset and measure the performence of deep learning models pre-trained on Image Net by using transfer learning methods.
 
 ## Usage
 
