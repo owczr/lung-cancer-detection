@@ -7,3 +7,4 @@ from .resnet import ResNetBuilder
 from .nasnet import NASNetBuilder
 from .vgg import VGGBuilder
 from .densenet import DenseNetBuilder
+from .convnext import ConvNeXtBuilder
