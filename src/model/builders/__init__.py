@@ -9,3 +9,4 @@ from .vgg import VGGBuilder
 from .densenet import DenseNetBuilder
 from .convnext import ConvNeXtBuilder
 from .efficientnet_v2 import EfficientNetV2Builder
+from .resnet_v2 import ResNetV2Builder
