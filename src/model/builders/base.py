@@ -26,6 +26,11 @@ class ModelBuilder(ABC):
         self.__model = None
 
     @abstractmethod
+    def __str__(self):
+        """Returns the name of the model builder"""
+        pass
+
+    @abstractmethod
     def reset(self):
         """Resets the model builder"""
         self.model = None

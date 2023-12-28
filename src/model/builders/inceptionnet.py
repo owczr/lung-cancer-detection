@@ -18,8 +18,12 @@ INCEPTIONNET_OUTPUT_ACTIVATION = "sigmoid"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 class InceptionNetBuilder(ModelBuilder):
-    """InceptionNet concrete builder""" 
+    """InceptionNet concrete builder"""
+
+    def __str__(self):
+        return "InceptionNet"
 
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the InceptionNet model"""
@@ -45,12 +49,12 @@ class InceptionNetBuilder(ModelBuilder):
                 preprocess_input_layer,
             ]
         )
-        
+
         logger.info("InceptionNet preprocessing layers set")
 
     def set_model_layers(self):
-        """Sets the model layers for the InceptionNet model"""  
-        base_model = tf.keras.applications.inception_v3.InceptionV3(  
+        """Sets the model layers for the InceptionNet model"""
+        base_model = tf.keras.applications.inception_v3.InceptionV3(
             input_shape=INCEPTIONNET_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 

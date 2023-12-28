@@ -23,6 +23,9 @@ logger.setLevel(logging.INFO)
 class EfficientNetBuilder(ModelBuilder):
     """EfficientNet concrete builder"""
 
+    def __str__(self):
+        return "EfficientNet"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the EfficientNet model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

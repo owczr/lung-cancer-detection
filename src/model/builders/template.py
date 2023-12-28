@@ -23,6 +23,9 @@ logger.setLevel(logging.INFO)
 class TEMPLATEBuilder(ModelBuilder):
     """TEMPLATE concrete builder"""  # TODO: Change the docstring
 
+    def __str__(self):
+        return "TEMPLATE"  # TODO: Change the return value
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the TEMPLATE model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

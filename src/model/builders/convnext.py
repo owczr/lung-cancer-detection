@@ -21,6 +21,8 @@ logger.setLevel(logging.INFO)
 
 class ConvNeXtBuilder(ModelBuilder):
     """ConvNeXt concrete builder"""
+    def __str__(self):
+        return "ConvNeXt"
 
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the ConvNeXt model"""

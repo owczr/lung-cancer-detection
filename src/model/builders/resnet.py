@@ -21,6 +21,9 @@ logger.setLevel(logging.INFO)
 class ResNetBuilder(ModelBuilder):
     """ResNet concrete builder"""
 
+    def __str__(self):
+        return "ResNet"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the ResNet model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

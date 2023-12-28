@@ -21,6 +21,9 @@ logger.setLevel(logging.INFO)
 class DenseNetBuilder(ModelBuilder):
     """DenseNet concrete builder"""
 
+    def __str__(self):
+        return "DenseNet"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the DenseNet model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

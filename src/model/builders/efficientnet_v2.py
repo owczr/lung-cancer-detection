@@ -21,6 +21,9 @@ logger.setLevel(logging.INFO)
 class EfficientNetV2Builder(ModelBuilder):
     """EfficientNetV2 concrete builder"""
 
+    def __str__(self):
+        return "EfficientNetV2"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the EfficientNetV2 model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

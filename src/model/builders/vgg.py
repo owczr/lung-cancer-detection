@@ -22,6 +22,9 @@ logger.setLevel(logging.INFO)
 class VGGBuilder(ModelBuilder):
     """VGG concrete builder"""
 
+    def __str__(self):
+        return "VGG"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the VGG model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))

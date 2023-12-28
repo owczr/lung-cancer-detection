@@ -23,6 +23,9 @@ logger.setLevel(logging.INFO)
 class NASNetBuilder(ModelBuilder):
     """NASNet concrete builder"""
 
+    def __str__(self):
+        return "NASNet"
+
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the NASNet model"""
         reshape_layer = tf.keras.layers.Reshape(target_shape=(HEIGHT, WIDTH, 1))
