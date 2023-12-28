@@ -10,3 +10,4 @@ from .densenet import DenseNetBuilder
 from .convnext import ConvNeXtBuilder
 from .efficientnet_v2 import EfficientNetV2Builder
 from .resnet_v2 import ResNetV2Builder
+from .inception_resnet import InceptionResNetBuilder
