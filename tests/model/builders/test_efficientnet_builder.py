@@ -15,7 +15,7 @@ def director():
     return ModelDirector(builder=EfficientNetBuilder())
 
 
-class TestMobileNetBuilder:
+class TestEfficientNetBuilder:
     def test_set_preprocessing_layers(self, builder):
         builder.set_preprocessing_layers()
         assert isinstance(
