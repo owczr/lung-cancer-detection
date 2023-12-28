@@ -1,4 +1,4 @@
-from src.model.directors import ModelDirector
+from src.model.director import ModelDirector
 from src.model.builders import MobileNetBuilder
 
 
