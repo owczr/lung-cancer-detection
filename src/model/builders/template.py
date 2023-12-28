@@ -54,7 +54,7 @@ class TEMPLATEBuilder(ModelBuilder):
     def set_model_layers(self):
         """Sets the model layers for the TEMPLATE model"""  # TODO: Change the docstring
         # TODO: Change the following base_model
-        base_model = tf.keras.applications.TEMPLATE(  
+        base_model = tf.keras.applications.TEMPLATE.TEMPLATE(  
             input_shape=TEMPLATE_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 
