@@ -6,6 +6,7 @@ import logging
 import tensorflow as tf
 
 from src.model.builders import ModelBuilder
+from src.preprocessing.utils import HEIGHT, WIDTH
 
 
 MOBILENET_INPUT_SHAPE = (224, 224, 3)
@@ -22,21 +23,39 @@ logger.setLevel(logging.INFO)
 
 class MobileNetBuilder(ModelBuilder):
     """Concrete builder for MobileNet."""
+    def __str__(self):
+        return "MobileNetBuilder"
 
     def set_preprocessing_layers(self):
         """Sets the preprocessing layers for the MobileNet model"""
+        reshape_layer = tf.keras.layers.Reshape(
+            target_shape=(HEIGHT, WIDTH, 1)
+        )
+
+        greyscale_layer = tf.keras.layers.Lambda(
+           tf.image.grayscale_to_rgb
+        )
+
+        resize_layer = tf.keras.layers.Resizing(
+            height=MOBILENET_INPUT_SHAPE[0], width=MOBILENET_INPUT_SHAPE[1]
+        )
+
         preprocess_input = tf.keras.applications.mobilenet_v3.preprocess_input
 
         preprocess_input_layer = tf.keras.layers.Lambda(
             preprocess_input, input_shape=MOBILENET_INPUT_SHAPE
         )
 
-        rescale_layer = tf.keras.layers.experimental.preprocessing.Rescaling(
-            scale=MOBILENET_SCALE
-        )
+        rescale_layer = tf.keras.layers.Rescaling(scale=MOBILENET_SCALE)
 
         self.preprocessing_layers = tf.keras.Sequential(
-            [preprocess_input_layer, rescale_layer]
+            [
+                reshape_layer,
+                greyscale_layer,
+                resize_layer,
+                preprocess_input_layer,
+                rescale_layer,
+            ]
         )
         logger.info("MobileNet preprocessing layers set")
 
