@@ -1,9 +1,15 @@
+import os
+
+from dotenv import load_dotenv
+
 from src.model.builders import ResNetV2Builder
 from src.model.director import ModelDirector
 from src.dataset.dataset_loader import DatasetLoader 
 
 
-DATASET_DIR = "LIDC-IDRI/CT/processed/train"
+load_dotenv()
+DATASET_DIR = os.getenv("PROCESSED_DATASET_DIR") + "/train"
+
 
 def build_resnet_v2():
     builder = ResNetV2Builder()

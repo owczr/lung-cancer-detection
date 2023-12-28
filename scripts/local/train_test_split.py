@@ -1,7 +1,11 @@
+import os
+
+from dotenv import load_dotenv
+
 from src.preprocessing import DatasetProcessor
 
 
-DATA_PATH = "/home/student/Repositories/lung-cancer-detection/LIDC-IDRI/CT/processed"
+DATA_PATH = os.getenv("PROCESSED_DATASET_DIR")
 
 
 def run():

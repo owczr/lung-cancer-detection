@@ -1,9 +1,13 @@
+import os
+
+from dotenv import load_dotenv
+
 from src.model.builders import DenseNetBuilder
 from src.model.director import ModelDirector
 from src.dataset.dataset_loader import DatasetLoader
 
-
-DATASET_DIR = "LIDC-IDRI/CT/processed/train"
+load_dotenv()
+DATASET_DIR = os.getenv("PROCESSED_DATASET_DIR") + "/train"
 
 def build_densenet():
     builder = DenseNetBuilder()

@@ -1,9 +1,15 @@
+import os
+
+from dotenv import load_dotenv
+
 from src.model.builders import ...  # TODO: Import the builder
 from src.model.director import ModelDirector
 from src.dataset.dataset_loader import DatasetLoader 
 
 
-DATASET_DIR = "LIDC-IDRI/CT/processed/train"
+load_dotenv()
+DATASET_DIR = os.getenv("PROCESSED_DATASET_DIR") + "/train"    
+
 
 # TODO: Change function name
 def build_TEMPLATE():
