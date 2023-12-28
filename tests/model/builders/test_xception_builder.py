@@ -15,7 +15,7 @@ def director():
     return ModelDirector(builder=XceptionBuilder())
 
 
-class TestTemplateBuilder:  # TODO: Change the class name
+class TestXceptionBuilder:
     def test_set_preprocessing_layers(self, builder):
         builder.set_preprocessing_layers()
         assert isinstance(
