@@ -1,5 +1,5 @@
 """
-Module with template for concrete builders
+Module with InceptionNet concrete builder
 """
 import logging
 

@@ -1,5 +1,5 @@
 """
-Module with template for concrete builders
+Module with TEMPLATE concrete builder  # TODO: Change the docstring
 """
 import logging
 
