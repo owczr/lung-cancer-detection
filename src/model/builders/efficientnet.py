@@ -33,7 +33,7 @@ class EfficientNetBuilder(ModelBuilder):
             height=EFFICIENTNET_INPUT_SHAPE[0], width=EFFICIENTNET_INPUT_SHAPE[1]
         )
 
-        preprocess_input = tf.keras.applications.EfficientNetB7.preprocess_input
+        preprocess_input = tf.keras.applications.efficientnet.preprocess_input
 
         preprocess_input_layer = tf.keras.layers.Lambda(
             preprocess_input, input_shape=EFFICIENTNET_INPUT_SHAPE
