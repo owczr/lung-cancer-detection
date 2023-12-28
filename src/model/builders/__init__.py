@@ -1,2 +1,3 @@
 from .base import ModelBuilder
-from .mobilenet_builder import MobileNetBuilder
+from .mobilenet import MobileNetBuilder
+from .efficientnet import EfficientNetBuilder
