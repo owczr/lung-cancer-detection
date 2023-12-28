@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # TODO: Change the following class name
-class TemplateBuilder(ModelBuilder):
+class TEMPLATEBuilder(ModelBuilder):
     """TEMPLATE concrete builder"""  # TODO: Change the docstring
 
     def set_preprocessing_layers(self):
@@ -49,7 +49,7 @@ class TemplateBuilder(ModelBuilder):
             ]
         )
         # TODO: Change the following log message
-        logger.info("Template preprocessing layers set")
+        logger.info("TEMPLATE preprocessing layers set")
 
     def set_model_layers(self):
         """Sets the model layers for the TEMPLATE model"""  # TODO: Change the docstring
