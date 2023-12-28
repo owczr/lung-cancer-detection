@@ -36,6 +36,10 @@ CLOSING_DISK_DIAMETER = 15
 OPENING_DISK_DIAMETER = 5
 # Logging
 PREPROCESSING_LOG = "preprocessing.log"
+# Processed dicom
+HEIGHT = 512
+WIDTH = 512
+CHANNELS = 1
 
 
 @dataclass
