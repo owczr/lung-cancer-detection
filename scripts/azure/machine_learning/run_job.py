@@ -58,7 +58,7 @@ def submit_job(ml_client, model, optimizer, loss, metric, epochs, batch_size):
     command_job = command(
         code=code,
         command=(
-            f"python -m src.scripts.azure.machine_learning.train_{model}"
+            "python -m src.scripts.azure.machine_learning.train"
             " --train ${{inputs.train}} --test ${{inputs.test}}"
             " --epochs ${{inputs.epochs}} --optimizer ${{inputs.optimizer}}"
             " --loss ${{inputs.loss}} --metric ${{inputs.metric}}"

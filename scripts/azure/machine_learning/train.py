@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
-@click.command(
+@click.option(
     "--model", type=click.Choice(MODELS), default="mobilenet", help="Model to train"
 )
 @click.option(
@@ -53,8 +53,9 @@ logger = logging.getLogger(__name__)
     default="accuracy",
     help="Metrics to use",
 )
-@click.option("--epochs", type=int, default=10, help="Number of epochs to train for")
-def run(model, train, test, optimizer, loss, metric, epochs):
+@click.option("--epochs", type=click.INT, default=10, help="Number of epochs to train for")
+@click.option("--batch_size", type=click.INT, default=64, help="Batch size for dataset loaders")
+def run(model, train, test, optimizer, loss, metric, epochs, batch_size):
     logger.info(f"Started training run at {datetime.now()}")
     logger.info(
         f"Run parameters - optimizer: {optimizer}, loss: {loss}, metrics: {metric}"
