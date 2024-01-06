@@ -4,7 +4,7 @@ channels:
   - defaults
   - anaconda
 dependencies:
-  - python
+  - python=3.11.5
   - pip
   - pip:
     - numpy==1.23.5
