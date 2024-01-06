@@ -66,7 +66,7 @@ def run(model, train, test, optimizer, loss, epochs, batch_size):
 
     for metric, values in history.history.items():
         for epoch, value in enumerate(values)):
-            run.log(str(epoch), epoch)
+            run.log(str(epoch), value)
 
     results = model.evaluate(test_dataset, return_dict=True)
     logger.info("Evaluated model")
