@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime
 
 import click
@@ -10,6 +11,9 @@ from azure.ai.ml.constants import AssetTypes
 
 from src.config import MODELS
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -35,17 +39,9 @@ def get_compute(ml_client):
     try:
         ml_client.compute.get(cpu_compute_target)
     except Exception:
-        click.echo("Creating a new cpu compute target...")
-        compute = AmlCompute(
-            name=cpu_compute_target,
-            size=size,
-            min_instances=min_instances,
-            max_instances=max_instances,
-        )
-        ml_client.compute.begin_create_or_update(compute).result()
+        click.echo(f"Compute {cpu_compute_target} not found.")
 
-
-def submit_job(ml_client, model, optimizer, loss, metric, epochs, batch_size):
+def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
     code = os.getenv("AZURE_CODE_PATH")
     environment = os.getenv("AZURE_ENVIRONMENT")
     type_ = os.getenv("AZURE_STORAGE_TYPE")
@@ -55,14 +51,16 @@ def submit_job(ml_client, model, optimizer, loss, metric, epochs, batch_size):
     train_path = os.path.join(path, "train")
     test_path = os.path.join(path, "test")
 
+    job_name = f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}" 
+
     command_job = command(
         code=code,
         command=(
-            f"python -m src.scripts.azure.machine_learning.train_{model}"
+            "python -m scripts.azure.machine_learning.train"
             " --train ${{inputs.train}} --test ${{inputs.test}}"
             " --epochs ${{inputs.epochs}} --optimizer ${{inputs.optimizer}}"
-            " --loss ${{inputs.loss}} --metric ${{inputs.metric}}"
-            " --batch_size ${{inputs.batch_size}} --model ${{inputs.model}}"
+            " --loss ${{inputs.loss}}  --batch_size ${{inputs.batch_size}}"
+            " --model ${{inputs.model}} --job_name ${{inputs.job_name}}"
         ),
         environment=environment,
         inputs={
@@ -76,13 +74,13 @@ def submit_job(ml_client, model, optimizer, loss, metric, epochs, batch_size):
             ),
             "optimizer": optimizer,
             "loss": loss,
-            "metric": metric,
             "epochs": epochs,
             "batch_size": batch_size,
             "model": model,
+            "job_name": job_name,
         },
         compute=compute,
-        name=f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        name=job_name,
     )
 
     returned_job = ml_client.jobs.create_or_update(command_job)
@@ -115,15 +113,9 @@ def register_model(ml_client, returned_job, run_name, run_description):
     default="binary_crossentropy",
     help="Loss function to use",
 )
-@click.option(
-    "--metric",
-    type=click.Choice(["accuracy", "f1"]),
-    default="accuracy",
-    help="Metrics to use",
-)
 @click.option("--epochs", type=int, default=10, help="Number of epochs to train for")
 @click.option("--batch_size", type=int, default=32, help="Batch size to use")
-def run(model, optimizer, loss, metric, epochs, batch_size):
+def run(model, optimizer, loss, epochs, batch_size):
     if model not in MODELS:
         raise ValueError(f"Model {model} not supported")
 
@@ -136,15 +128,27 @@ def run(model, optimizer, loss, metric, epochs, batch_size):
         model=model,
         optimizer=optimizer,
         loss=loss,
-        metric=metric,
         epochs=epochs,
         batch_size=batch_size,
     )
 
-    click.echo("Job created with:")
-    click.echo(f"  - id: {returned_job.id}")
-    click.echo(f"  - name: {returned_job.name}")
-    click.echo(f"  - url: {returned_job.studio_url}")
+    click.echo(
+        f"Job {returned_job.name} created.\n"
+        f"  - id: {returned_job.id}\n"
+        f"  - url: {returned_job.studio_url}\n"
+    )
+
+    logger.info(
+        f"Created a {model} training job at {datetime.now()}\n"
+        f"  - id: {returned_job.id}\n"
+        f"  - name: {returned_job.name}\n"
+        f"  - url: {returned_job.studio_url}\n\n"
+        "Training parameters:\n"
+        f"  - optimizer: {optimizer}\n"
+        f"  - loss: {loss}\n"
+        f"  - epochs: {epochs}\n"
+        f"  - batch size: {batch_size}\n"
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,9 @@
+requirements.txt
+README.md
+LICENSE
+tests/
+notebooks/
+docs/
+.pytest_cache/
+.github/
+

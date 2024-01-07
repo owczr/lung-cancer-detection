@@ -1,27 +1,37 @@
+import os
 import logging
 from datetime import datetime
 
-# Get the current date to create a dynamic log filename
-current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-log_filename = f"lung_cancer_detection_{current_date}.log"
-logging.basicConfig(
-    filename=log_filename,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+import tensorflow as tf
+import tensorflow_addons as tfa
+
+from src.model.builders import (
+    ConvNeXtBuilder,
+    DenseNetBuilder,
+    EfficientNetBuilder,
+    EfficientNetV2Builder,
+    InceptionNetBuilder,
+    InceptionResNetBuilder,
+    MobileNetBuilder,
+    NASNetBuilder,
+    ResNetBuilder,
+    ResNetV2Builder,
+    VGGBuilder,
+    XceptionBuilder,
 )
 
-EARLY_STOPPING_CONFIG = {
-    "monitor": "val_loss",
-    "min_delta": 0.001,
-    "patience": 3,
-}
+def config_logging():
+    current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_filename = f"lung_cancer_detection_{current_date}.log"
+    logging.basicConfig(
+        filename=log_filename,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
 
-REDUCE_LR_CONFIG = {
-    "monitor": "val_loss",
-    "factor": 0.1,
-    "patience": 2,
-    "min_delta": 0.001,
-}
+config_logging()
+
+RANDOM_SEED = 42
 
 MODELS = [
     "convnext",
@@ -31,8 +41,52 @@ MODELS = [
     "inceptionnet",
     "inceptionresnet",
     "mobilenet",
+    "nasnet",
     "resnet",
     "resnetv2",
     "vgg",
     "xception",
 ]
+
+BUILDERS = {
+    "convnext": ConvNeXtBuilder,
+    "densenet": DenseNetBuilder,
+    "efficientnet": EfficientNetBuilder,
+    "efficientnetv2": EfficientNetV2Builder,
+    "inceptionnet": InceptionNetBuilder,
+    "inceptionresnet": InceptionResNetBuilder,
+    "mobilenet": MobileNetBuilder,
+    "nasnet": NASNetBuilder,
+    "resnet": ResNetBuilder,
+    "resnetv2": ResNetV2Builder,
+    "vgg": VGGBuilder,
+    "xception": XceptionBuilder,
+}
+
+_threshold = 0.5
+METRICS = [
+    tf.keras.metrics.BinaryAccuracy(threshold=_threshold, name="accuracy"),
+    tfa.metrics.F1Score(num_classes=1, threshold=_threshold, name="f1"),
+    tf.keras.metrics.Precision(thresholds=_threshold, name="precision"),
+    tf.keras.metrics.Recall(thresholds=_threshold, name="recall"),
+    tf.keras.metrics.AUC(thresholds=[_threshold], curve="ROC", name="roc_auc"),
+]
+
+EARLY_STOPPING_CONFIG = {
+    "monitor": "loss",
+    "min_delta": 0.001,
+    "patience": 6,
+}
+
+REDUCE_LR_CONFIG = {
+    "monitor": "loss",
+    "factor": 0.1,
+    "patience": 4,
+    "min_delta": 0.001,
+}
+
+CALLBACKS = [
+    tf.keras.callbacks.EarlyStopping(**EARLY_STOPPING_CONFIG),
+    tf.keras.callbacks.ReduceLROnPlateau(**REDUCE_LR_CONFIG),
+]
+
