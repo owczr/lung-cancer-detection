@@ -75,10 +75,20 @@ class DatasetLoader:
 
         return paths, labels
 
-    def _load_batch_data(self, paths_batch):
+    def _load_batch_data(self, paths_batch, labels_batch):
         """Loads batch of data"""
-        batch_data = [np.load(path) for path in paths_batch]
-        return batch_data
+        # def load(path: str) -> np.ndarray | None:
+        #    try:
+        #         data = np.load(path)
+        #     except ValueError as e:
+        #        logger.error(f"Error while loading {path}.\n{e}")
+        #         return None
+        #  
+        # batch_data = [(load(path), label) for path, label in zip(paths_batch, labels_batch)]
+        # batch_data = [(data, label) for data, label in batch_data if data is not None]
+        #  
+        # return batch_data
+        return [(np.load(path), label) for path, label in zip(paths_batch, labels_batch)]
 
     def _data_generator(self):
         """Loads and yields batches of data"""
@@ -89,9 +99,18 @@ class DatasetLoader:
         for i in range(0, len(paths), self.batch_size):
             paths_batch = paths[i : i + self.batch_size]
             labels_batch = labels[i : i + self.batch_size]
-
-            batch_data = self._load_batch_data(paths_batch)
+            
+            try:
+                batch_data = self._load_batch_data(paths_batch, labels_batch)
+            except Exception as e:
+                logger.error(f"Error while loading batch {i}.\n{e}")
+                continue
 
             logger.info(f"Batch {i} loaded")
 
-            yield np.array(batch_data), np.array(labels_batch)
+            if len(batch_data) == 0:
+                continue
+
+            data_batch, batch_labels = zip(*batch_data)
+
+            yield np.array(data_batch), np.array(labels_batch)

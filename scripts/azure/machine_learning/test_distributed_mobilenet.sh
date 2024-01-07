@@ -3,4 +3,5 @@ python -m scripts.azure.machine_learning.run_job \
   --optimizer adam \
   --loss binary_crossentropy \
   --epochs 2 \
-  --batch_size 16
+  --batch_size 128 \
+  --distributed

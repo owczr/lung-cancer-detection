@@ -64,12 +64,14 @@ BUILDERS = {
 }
 
 _threshold = 0.5
+
+# lambda is needed, because metrics need to be created within strategy scope
 METRICS = [
-    tf.keras.metrics.BinaryAccuracy(threshold=_threshold, name="accuracy"),
-    tfa.metrics.F1Score(num_classes=1, threshold=_threshold, name="f1"),
-    tf.keras.metrics.Precision(thresholds=_threshold, name="precision"),
-    tf.keras.metrics.Recall(thresholds=_threshold, name="recall"),
-    tf.keras.metrics.AUC(thresholds=[_threshold], curve="ROC", name="roc_auc"),
+    lambda : tf.keras.metrics.BinaryAccuracy(threshold=_threshold, name="accuracy"),
+    lambda : tfa.metrics.F1Score(num_classes=1, threshold=_threshold, name="f1"),
+    lambda : tf.keras.metrics.Precision(thresholds=_threshold, name="precision"),
+    lambda : tf.keras.metrics.Recall(thresholds=_threshold, name="recall"),
+    lambda : tf.keras.metrics.AUC(thresholds=[_threshold], curve="ROC", name="roc_auc"),
 ]
 
 EARLY_STOPPING_CONFIG = {

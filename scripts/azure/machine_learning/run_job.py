@@ -32,16 +32,13 @@ def connect_to_workspace():
 
 def get_compute(ml_client):
     cpu_compute_target = os.getenv("AZURE_COMPUTE_TARGET")
-    size = os.getenv("AZURE_COMPUTE_SIZE")
-    min_instances = os.getenv("AZURE_COMPUTE_MIN_INSTANCES")
-    max_instances = os.getenv("AZURE_COMPUTE_MAX_INSTANCES")
 
     try:
         ml_client.compute.get(cpu_compute_target)
     except Exception:
         click.echo(f"Compute {cpu_compute_target} not found.")
 
-def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
+def submit_job(ml_client, model, optimizer, loss, epochs, batch_size, distributed):
     code = os.getenv("AZURE_CODE_PATH")
     environment = os.getenv("AZURE_ENVIRONMENT")
     type_ = os.getenv("AZURE_STORAGE_TYPE")
@@ -53,15 +50,19 @@ def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
 
     job_name = f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}" 
 
+    command_var = (
+        "python -m scripts.azure.machine_learning.train"
+        " --train ${{inputs.train}} --test ${{inputs.test}}"
+        " --epochs ${{inputs.epochs}} --optimizer ${{inputs.optimizer}}"
+        " --loss ${{inputs.loss}}  --batch_size ${{inputs.batch_size}}"
+        " --model ${{inputs.model}} --job_name ${{inputs.job_name}}"
+    )
+
+    command_var = command_var + " --distributed" if distributed else command_var
+
     command_job = command(
         code=code,
-        command=(
-            "python -m scripts.azure.machine_learning.train"
-            " --train ${{inputs.train}} --test ${{inputs.test}}"
-            " --epochs ${{inputs.epochs}} --optimizer ${{inputs.optimizer}}"
-            " --loss ${{inputs.loss}}  --batch_size ${{inputs.batch_size}}"
-            " --model ${{inputs.model}} --job_name ${{inputs.job_name}}"
-        ),
+        command=command_var,
         environment=environment,
         inputs={
             "train": Input(
@@ -115,7 +116,8 @@ def register_model(ml_client, returned_job, run_name, run_description):
 )
 @click.option("--epochs", type=int, default=10, help="Number of epochs to train for")
 @click.option("--batch_size", type=int, default=32, help="Batch size to use")
-def run(model, optimizer, loss, epochs, batch_size):
+@click.option("--distributed", is_flag=True, help="Use distributed startegy")
+def run(model, optimizer, loss, epochs, batch_size, distributed):
     if model not in MODELS:
         raise ValueError(f"Model {model} not supported")
 
@@ -130,6 +132,7 @@ def run(model, optimizer, loss, epochs, batch_size):
         loss=loss,
         epochs=epochs,
         batch_size=batch_size,
+        distributed=distributed,
     )
 
     click.echo(

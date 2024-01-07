@@ -18,7 +18,7 @@ from src.config import (
     MODELS, 
     BUILDERS, 
     CALLBACKS, 
-    METRICS, 
+    METRICS,
     config_logging
 )
 
@@ -26,6 +26,39 @@ config_logging()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("azure")
 
+
+def get_compiled_model(model, optimizer, loss):
+    builder = BUILDERS[model]()
+
+    director = ModelDirector(builder)
+    model_nn = director.make()
+    logger.info(f"Built model_nn with {str(builder)}")
+
+    optimizer_cls = {
+        "adam": tf.keras.optimizers.Adam,
+        "sgd": tf.keras.optimizers.SGD,
+    }[optimizer]()
+
+    loss_cls = {
+        "binary_crossentropy": tf.keras.losses.BinaryCrossentropy,
+        "categorical_crossentropy": tf.keras.losses.CategoricalCrossentropy,
+    }[loss]()
+
+    metrics = [metric() for metric in METRICS]
+
+    model_nn.compile(optimizer=optimizer_cls, loss=loss_cls, metrics=metrics, run_eagerly=True)
+    logger.info("Compiled model")
+
+    return model_nn
+
+
+def get_compiled_distributed_model(model, optimizer, loss):
+    strategy = tf.distribute.MultiWorkerMirroredStrategy()
+
+    with strategy.scope():
+        model_nn = get_compiled_model(model, optimizer, loss)
+
+    return model_nn
 
 @click.command()
 @click.option(
@@ -50,7 +83,8 @@ logger = logging.getLogger("azure")
 @click.option("--epochs", type=click.INT, default=10, help="Number of epochs to train for")
 @click.option("--batch_size", type=click.INT, default=64, help="Batch size for dataset loaders")
 @click.option("--job_name", type=click.STRING, help="Azure Machine Learning job name")
-def run(model, train, test, optimizer, loss, epochs, batch_size, job_name):
+@click.option("--distributed", is_flag=True, help="Use distributed startegy")
+def run(model, train, test, optimizer, loss, epochs, batch_size, job_name, distributed):
     mlflow.set_experiment("lung-cancer-detection")
     mlflow_run = mlflow.start_run(run_name=f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}")
 
@@ -64,12 +98,11 @@ def run(model, train, test, optimizer, loss, epochs, batch_size, job_name):
     logger.info(
         f"Run parameters - optimizer: {optimizer}, loss: {loss}"
     )
-
-    builder = BUILDERS[model]()
-
-    director = ModelDirector(builder)
-    model_nn = director.make()
-    logger.info(f"Built model_nn with {str(builder)}")
+    
+    if not distributed:
+        model_nn = get_compiled_model(model, optimizer, loss)
+    else:
+        model_nn = get_compiled_distributed_model(model, optimizer, loss)
 
     train_loader = DatasetLoader(train)
     test_loader = DatasetLoader(test)
@@ -80,9 +113,6 @@ def run(model, train, test, optimizer, loss, epochs, batch_size, job_name):
     train_dataset = train_loader.get_dataset()
     test_dataset = test_loader.get_dataset()
     logger.info("Loaded train and test datasets")
-
-    model_nn.compile(optimizer=optimizer, loss=loss, metrics=METRICS)
-    logger.info("Compiled model")
 
     history = model_nn.fit(train_dataset, epochs=epochs, callbacks=CALLBACKS)
     logger.info("Trained model")
