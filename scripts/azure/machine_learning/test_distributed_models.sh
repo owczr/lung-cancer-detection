@@ -3,7 +3,7 @@
 OPTIMIZER="adam"
 LOSS="binary_crossentropy"
 EPOCHS=5
-BATCH_SIZE=32
+BATCH_SIZE=128
 
 for model in mobilenet nasnet efficientnet efficientnetv2 densenet inceptionnet xception resnet resnetv2 convnext inceptionresnet vgg;
   do
@@ -12,6 +12,7 @@ for model in mobilenet nasnet efficientnet efficientnetv2 densenet inceptionnet 
       --optimizer "$OPTIMIZER" \
       --loss "$LOSS" \
       --epochs "$EPOCHS" \
-      --batch_size "$BATCH_SIZE"
+      --batch_size "$BATCH_SIZE" \
+      --distributed
   done
 
