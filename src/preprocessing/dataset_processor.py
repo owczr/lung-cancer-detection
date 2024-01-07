@@ -9,7 +9,6 @@ from datetime import datetime
 import numpy as np
 from tqdm import tqdm
 
-import src.config
 from src.preprocessing.base import BaseProcessor
 from src.preprocessing.annotation_processor import AnnotationProcessor
 from src.preprocessing.dicom_processor import DicomProcessor

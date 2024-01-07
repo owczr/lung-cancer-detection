@@ -51,6 +51,8 @@ def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
     train_path = os.path.join(path, "train")
     test_path = os.path.join(path, "test")
 
+    job_name = f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}" 
+
     command_job = command(
         code=code,
         command=(
@@ -58,7 +60,7 @@ def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
             " --train ${{inputs.train}} --test ${{inputs.test}}"
             " --epochs ${{inputs.epochs}} --optimizer ${{inputs.optimizer}}"
             " --loss ${{inputs.loss}}  --batch_size ${{inputs.batch_size}}"
-            " --model ${{inputs.model}}"
+            " --model ${{inputs.model}} --job_name ${{inputs.job_name}}"
         ),
         environment=environment,
         inputs={
@@ -75,9 +77,10 @@ def submit_job(ml_client, model, optimizer, loss, epochs, batch_size):
             "epochs": epochs,
             "batch_size": batch_size,
             "model": model,
+            "job_name": job_name,
         },
         compute=compute,
-        name=f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        name=job_name,
     )
 
     returned_job = ml_client.jobs.create_or_update(command_job)
@@ -130,9 +133,8 @@ def run(model, optimizer, loss, epochs, batch_size):
     )
 
     click.echo(
-        "Job created with:\n"
+        f"Job {returned_job.name} created.\n"
         f"  - id: {returned_job.id}\n"
-        f"  - name: {returned_job.name}\n"
         f"  - url: {returned_job.studio_url}\n"
     )
 

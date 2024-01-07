@@ -33,6 +33,11 @@ class DatasetLoader:
             ),
         )
 
+    def set_seed(self, seed: int) -> None:
+        """Sets random seeds"""
+        np.random.seed(seed)
+        tf.random.set_seed(seed)
+
     def _get_data(self):
         """Returns flat list of paths to nodule and non-nodule images with labels"""
         nodule_path = os.path.join(self.dataset_path, NODULE)
