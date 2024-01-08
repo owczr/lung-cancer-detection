@@ -32,6 +32,8 @@ def config_logging():
 config_logging()
 
 RANDOM_SEED = 42
+RUN_EAGERLY = False
+JIT_COMPILE = True
 
 MODELS = [
     "convnext",

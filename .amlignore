@@ -6,4 +6,5 @@ notebooks/
 docs/
 .pytest_cache/
 .github/
-
+logs/
+*.log

@@ -6,6 +6,8 @@ import click
 import mlflow
 import numpy as np
 import tensorflow as tf
+from azure.ai.ml.entities import Model
+from azure.ai.ml.constants import AssetTypes
 
 from src.model.director import ModelDirector
 from src.dataset.dataset_loader import DatasetLoader
@@ -17,9 +19,7 @@ from src.config import (
     BUILDERS, 
     CALLBACKS, 
     METRICS,
-    RUN_EAGERLY,
-    JIT_COMPILE,
-    config_logging,
+    config_logging
 )
 
 config_logging()
@@ -46,13 +46,7 @@ def get_compiled_model(model, optimizer, loss):
 
     metrics = [metric() for metric in METRICS]
 
-    model_nn.compile(
-        optimizer=optimizer_cls,
-        loss=loss_cls,
-        metrics=metrics,
-        run_eagerly=RUN_EAGERLY,
-        jit_compile=JIT_COMPILE
-    )
+    model_nn.compile(optimizer=optimizer_cls, loss=loss_cls, metrics=metrics, run_eagerly=False)
     logger.info("Compiled model")
 
     return model_nn
@@ -74,7 +68,6 @@ def get_compiled_distributed_model(model, optimizer, loss):
     "--train", type=click.Path(exists=True), help="Path to the training dataset"
 )
 @click.option("--test", type=click.Path(exists=True), help="Path to the test dataset")
-@click.option("--val", type=click.Path(exists=True), help="Path to the validation dataset")
 @click.option(
     "--optimizer",
     type=click.Choice(["adam", "sgd"]),
@@ -91,7 +84,7 @@ def get_compiled_distributed_model(model, optimizer, loss):
 @click.option("--batch_size", type=click.INT, default=64, help="Batch size for dataset loaders")
 @click.option("--job_name", type=click.STRING, help="Azure Machine Learning job name")
 @click.option("--distributed", is_flag=True, help="Use distributed startegy")
-def run(model, train, test, val, optimizer, loss, epochs, batch_size, job_name, distributed):
+def run(model, train, test, optimizer, loss, epochs, batch_size, job_name, distributed):
     mlflow.set_experiment("lung-cancer-detection")
     mlflow_run = mlflow.start_run(run_name=f"train_{model}_{datetime.now().strftime('%Y%m%d%H%M%S')}")
 
@@ -113,23 +106,15 @@ def run(model, train, test, val, optimizer, loss, epochs, batch_size, job_name, 
 
     train_loader = DatasetLoader(train)
     test_loader = DatasetLoader(test)
-    val_loader = DatasetLoader(val)
 
     train_loader.set_seed(RANDOM_SEED)
     test_loader.set_seed(RANDOM_SEED)
-    val_loader.set_seed(RANDOM_SEED)
 
     train_dataset = train_loader.get_dataset()
     test_dataset = test_loader.get_dataset()
-    val_dataset = val_loader.get_dataset()
     logger.info("Loaded train and test datasets")
 
-    history = model_nn.fit(
-        train_dataset,
-        validation_data=val_dataset,
-        epochs=epochs,
-        callbacks=CALLBACKS,
-    )
+    history = model_nn.fit(train_dataset, epochs=epochs, callbacks=CALLBACKS)
     logger.info("Trained model")
 
     for metric, values in history.history.items():

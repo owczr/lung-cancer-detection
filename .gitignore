@@ -5,3 +5,4 @@ LIDC-IDRI/
 .vscode/
 __pycache__/
 .env
+logs/

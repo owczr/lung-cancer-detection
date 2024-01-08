@@ -5,7 +5,7 @@ LOSS="binary_crossentropy"
 EPOCHS=100
 BATCH_SIZE=64
 
-for model in mobilenet nasnet efficientnet efficientnetv2 densenet inceptionnet xception resnet resnetv2 convnext inceptionresnet vgg;
+for model in densenet inceptionnet xception resnetv2 inceptionresnet convnext;
   do
     python -m scripts.azure.machine_learning.run_job \
       --model "$model" \
