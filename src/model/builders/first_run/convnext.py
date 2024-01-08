@@ -52,7 +52,7 @@ class ConvNeXtBuilder(ModelBuilder):
 
     def set_model_layers(self):
         """Sets the model layers for the ConvNeXt model"""
-        base_model = tf.keras.applications.convnext.ConvNeXtTiny(
+        base_model = tf.keras.applications.convnext.ConvNeXtSmall(
             input_shape=CONVNEXT_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 

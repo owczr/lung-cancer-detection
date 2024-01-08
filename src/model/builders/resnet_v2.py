@@ -52,7 +52,7 @@ class ResNetV2Builder(ModelBuilder):
 
     def set_model_layers(self):
         """Sets the model layers for the ResNetV2 model"""
-        base_model = tf.keras.applications.resnet_v2.ResNet50V2(  
+        base_model = tf.keras.applications.resnet_v2.ResNet152V2(  
             input_shape=RESNETV2_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 

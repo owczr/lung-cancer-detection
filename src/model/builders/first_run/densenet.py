@@ -52,7 +52,7 @@ class DenseNetBuilder(ModelBuilder):
 
     def set_model_layers(self):
         """Sets the model layers for the DenseNet model"""
-        base_model = tf.keras.applications.densenet.DenseNet201(  
+        base_model = tf.keras.applications.densenet.DenseNet121(  
             input_shape=DENSENET_INPUT_SHAPE, include_top=False, weights="imagenet"
         )
 
